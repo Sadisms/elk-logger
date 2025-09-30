@@ -3,6 +3,7 @@ import sys
 from typing import Literal, Optional
 
 import colorlog
+from logstash_async.formatter import LogstashFormatter
 from logstash_async.handler import AsynchronousLogstashHandler
 
 
@@ -27,6 +28,7 @@ def setup_logger(
     enable_stdout: bool = True,
     enable_logstash: bool = True,
     environment: Literal["dev", "prod", "staging", "test"] = "dev",
+    project_name: Optional[str] = None,
 ) -> logging.Logger:
     if name in _loggers:
         return _loggers[name]
@@ -63,8 +65,15 @@ def setup_logger(
             host=logstash_host,
             port=logstash_port,
             database_path=None,
-            extra_fields={"environment": environment},
         )
+        if project_name:
+            logstash_handler.setFormatter(
+                LogstashFormatter(
+                    message_type=project_name,
+                    extra_prefix=project_name,
+                    extra={"environment": environment},
+                )
+            )
         logstash_handler.setLevel(level)
         logger.addHandler(logstash_handler)
 
