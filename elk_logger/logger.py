@@ -4,7 +4,6 @@ import sys
 import threading
 from typing import Any, Literal, Optional
 
-import colorlog
 from logstash_async.formatter import LogstashFormatter
 from logstash_async.handler import AsynchronousLogstashHandler
 
@@ -59,18 +58,11 @@ def setup_logger(
         logger.addFilter(env_filter)
 
         if enable_stdout:
-            console_handler = colorlog.StreamHandler(sys.stdout)
+            console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(level)
-            console_formatter = colorlog.ColoredFormatter(
-                "%(log_color)s%(asctime)s %(levelname)-8s%(reset)s %(purple)s[%(environment)s]%(reset)s %(blue)s[%(name)s]%(reset)s %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-                log_colors={
-                    "DEBUG": "cyan",
-                    "INFO": "green",
-                    "WARNING": "yellow",
-                    "ERROR": "red",
-                    "CRITICAL": "red,bg_white",
-                },
+            console_formatter = logging.Formatter(
+                "[%(asctime)s][%(name)s][%(levelname)s][%(environment)s] %(message)s",
+                datefmt="%m/%d/%Y %H:%M:%S",
             )
             console_handler.setFormatter(console_formatter)
             logger.addHandler(console_handler)
