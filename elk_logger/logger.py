@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+import threading
 from typing import Any, Literal, Optional
 
 import colorlog
@@ -9,6 +10,7 @@ from logstash_async.handler import AsynchronousLogstashHandler
 
 
 _loggers = {}
+_lock = threading.Lock()
 
 
 class SafeLogstashFormatter(LogstashFormatter):
@@ -42,58 +44,60 @@ def setup_logger(
     environment: Literal["dev", "prod", "staging", "test"] = "dev",
     project_name: Optional[str] = None,
 ) -> logging.Logger:
-    if name in _loggers:
-        return _loggers[name]
+    with _lock:
+        if name in _loggers:
+            return _loggers[name]
 
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    logger.propagate = False
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+        logger.propagate = False
 
-    if logger.hasHandlers():
-        logger.handlers.clear()
+        if logger.hasHandlers():
+            logger.handlers.clear()
 
-    env_filter = EnvironmentFilter(environment)
-    logger.addFilter(env_filter)
+        env_filter = EnvironmentFilter(environment)
+        logger.addFilter(env_filter)
 
-    if enable_stdout:
-        console_handler = colorlog.StreamHandler(sys.stdout)
-        console_handler.setLevel(level)
-        console_formatter = colorlog.ColoredFormatter(
-            "%(log_color)s%(asctime)s %(levelname)-8s%(reset)s %(purple)s[%(environment)s]%(reset)s %(blue)s[%(name)s]%(reset)s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "green",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "red,bg_white",
-            },
-        )
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
-
-    if enable_logstash and logstash_host:
-        logstash_handler = AsynchronousLogstashHandler(
-            host=logstash_host,
-            port=logstash_port,
-            database_path=None,
-        )
-        if project_name:
-            logstash_handler.setFormatter(
-                SafeLogstashFormatter(
-                    message_type=project_name,
-                    extra_prefix=project_name,
-                    extra={"environment": environment},
-                )
+        if enable_stdout:
+            console_handler = colorlog.StreamHandler(sys.stdout)
+            console_handler.setLevel(level)
+            console_formatter = colorlog.ColoredFormatter(
+                "%(log_color)s%(asctime)s %(levelname)-8s%(reset)s %(purple)s[%(environment)s]%(reset)s %(blue)s[%(name)s]%(reset)s %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                log_colors={
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "red,bg_white",
+                },
             )
-        logstash_handler.setLevel(level)
-        logger.addHandler(logstash_handler)
+            console_handler.setFormatter(console_formatter)
+            logger.addHandler(console_handler)
 
-    _loggers[name] = logger
-    return logger
+        if enable_logstash and logstash_host:
+            logstash_handler = AsynchronousLogstashHandler(
+                host=logstash_host,
+                port=logstash_port,
+                database_path=None,
+            )
+            if project_name:
+                logstash_handler.setFormatter(
+                    SafeLogstashFormatter(
+                        message_type=project_name,
+                        extra_prefix=project_name,
+                        extra={"environment": environment},
+                    )
+                )
+            logstash_handler.setLevel(level)
+            logger.addHandler(logstash_handler)
+
+        _loggers[name] = logger
+        return logger
 
 
 def get_logger(name: str) -> logging.Logger:
-    if name in _loggers:
-        return _loggers[name]
+    with _lock:
+        if name in _loggers:
+            return _loggers[name]
     return setup_logger(name)
