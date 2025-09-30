@@ -1,6 +1,7 @@
+import json
 import logging
 import sys
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import colorlog
 from logstash_async.formatter import LogstashFormatter
@@ -8,6 +9,17 @@ from logstash_async.handler import AsynchronousLogstashHandler
 
 
 _loggers = {}
+
+
+class SafeLogstashFormatter(LogstashFormatter):
+    def _serialize(self, message: dict) -> str:
+        return json.dumps(message, ensure_ascii=self._ensure_ascii, default=self._json_default)
+    
+    def _json_default(self, obj: Any) -> str:
+        try:
+            return str(obj)
+        except Exception:
+            return f"<non-serializable: {type(obj).__name__}>"
 
 
 class EnvironmentFilter(logging.Filter):
@@ -68,7 +80,7 @@ def setup_logger(
         )
         if project_name:
             logstash_handler.setFormatter(
-                LogstashFormatter(
+                SafeLogstashFormatter(
                     message_type=project_name,
                     extra_prefix=project_name,
                     extra={"environment": environment},
