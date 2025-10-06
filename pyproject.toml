@@ -2,7 +2,7 @@
 name = "elk-logger"
 version = "0.1.0"
 description = "Logger for ELK with beautiful stdout output"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "python-logstash-async>=2.5.0",
 ]
