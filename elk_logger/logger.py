@@ -40,7 +40,7 @@ def setup_logger(
     logstash_port: int = 5959,
     enable_stdout: bool = True,
     enable_logstash: bool = True,
-    environment: Literal["dev", "prod", "staging", "test"] = "dev",
+    environment: Literal["dev", "prod", "staging", "test"] = "prod",
     project_name: Optional[str] = None,
 ) -> logging.Logger:
     with _lock:
