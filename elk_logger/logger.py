@@ -93,3 +93,19 @@ def get_logger(name: str) -> logging.Logger:
         if name in _loggers:
             return _loggers[name]
     return setup_logger(name)
+
+
+def truncate_large_data(obj, max_len=100):
+    if isinstance(obj, dict):
+        return {k: truncate_large_data(v, max_len) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [truncate_large_data(item, max_len) for item in obj]
+    elif isinstance(obj, str) and len(obj) > max_len:
+        return f"<truncated: {len(obj)} chars>"
+    return obj
+
+
+def get_extra_from_json(data: dict, max_len: int = 100) -> dict:
+    return {
+        "raw_json": json.dumps(truncate_large_data(data, max_len), ensure_ascii=False, indent=2),
+    }
