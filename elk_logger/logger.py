@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 import threading
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, List
 
 from logstash_async.formatter import LogstashFormatter
 from logstash_async.handler import AsynchronousLogstashHandler
@@ -33,6 +33,25 @@ class EnvironmentFilter(logging.Filter):
         return True
 
 
+class ConsoleFormatterWithExtra(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None, style='%', allowed_fields=None):
+        super().__init__(fmt, datefmt, style)
+        self.allowed_fields = allowed_fields if allowed_fields is not None else ['raw_json']
+    
+    def format(self, record):
+        base_msg = super().format(record)
+        
+        extra_fields = {
+            k: v for k, v in record.__dict__.items()
+            if k in self.allowed_fields
+        }
+        
+        if extra_fields:
+            extra_str = ' '.join(f'{k}={v}' for k, v in extra_fields.items())
+            return f"{base_msg} | {extra_str}"
+        return base_msg
+
+
 def setup_logger(
     name: str,
     level: int = logging.INFO,
@@ -42,6 +61,7 @@ def setup_logger(
     enable_logstash: bool = True,
     environment: Literal["dev", "prod", "staging", "test"] = "prod",
     project_name: Optional[str] = None,
+    stdout_extra_fields: Optional[List[str]] = None,
 ) -> logging.Logger:
     with _lock:
         if name in _loggers:
@@ -60,9 +80,14 @@ def setup_logger(
         if enable_stdout:
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(level)
-            console_formatter = logging.Formatter(
-                "[%(asctime)s][%(name)s][%(levelname)s][%(environment)s] %(message)s",
+            console_formatter = ConsoleFormatterWithExtra(
+                fmt="[%(asctime)s][%(name)s][%(levelname)s][%(environment)s] %(message)s",
                 datefmt="%m/%d/%Y %H:%M:%S",
+                allowed_fields=(
+                    stdout_extra_fields 
+                    if stdout_extra_fields is not None else 
+                    ['raw_json']
+                ),
             )
             console_handler.setFormatter(console_formatter)
             logger.addHandler(console_handler)
